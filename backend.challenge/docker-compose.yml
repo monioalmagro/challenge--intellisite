@@ -1,0 +1,70 @@
+version: "3.7"
+
+services:
+  api:
+    build: ./api
+    ports: 
+        - 8000:8000
+    environment:
+        - DB_URL=mongodb://db/myTestDB
+    volumes:
+        - ./api:/api
+
+  db:
+    image: mongo
+    ports:
+        - 27017:27017
+    volumes:
+        - taskdb:/data/db
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  broker:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  producer:
+    depends_on:
+      - broker
+    build: ./producer
+    environment:
+      KAFKA_BROKER_URL: "broker:9092"
+      DETECTIONS_TOPIC: intellisite.detections
+      DETECTIONS_PER_SECOND: 3
+
+  kafdrop:
+    depends_on:
+      - broker
+    image: obsidiandynamics/kafdrop
+    restart: "no"
+    ports:
+      - 9000:9000
+    environment:
+      KAFKA_BROKERCONNECT: "broker:9092"
+
+  indexer:
+    depends_on:
+      - broker
+    build: ./indexer
+    environment:
+      KAFKA_BROKER_URL: "broker:9092"
+      DETECTIONS_TOPIC: intellisite.detections
+      ALERTS_TOPIC: intellisite.alerts
+      SUSPICIOUS_VEHICLE: SUV
+networks:
+  default: 
+    external:
+      name: intellisite
+
+volumes:
+  taskdb:

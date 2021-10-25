@@ -20,6 +20,7 @@ if __name__ == "__main__":
     producer = KafkaProducer(
         bootstrap_servers=KAFKA_BROKER_URL,
         # Encode all values as JSON
+        api_version=(0, 11, 5),
         value_serializer=lambda value: json.dumps(value).encode(),
     )
     while True:
